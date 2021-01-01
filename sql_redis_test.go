@@ -106,7 +106,7 @@ func newMysqlTestPool() *mysql.Pool {
 
 func newMysqlTestClient() (*mysql.Client, error) {
 	config := mysql.NewConfig("root", "yuntest#cloud", "10.66.172.152", "3306", "demo")
-	config.LogLevel = golog.LEVEL_INFO
+	config.LogLevel = golog.LevelInfo
 
 	return mysql.NewClient(config, nil)
 }
@@ -121,7 +121,7 @@ func newRedisTestPool() *redis.Pool {
 }
 
 func newRedisTestClient() (*redis.Client, error) {
-	logger, _ := golog.NewConsoleLogger(golog.LEVEL_INFO)
+	logger, _ := golog.NewConsoleLogger(golog.LevelInfo)
 	config := redis.NewConfig("127.0.0.1", "6379", "passwd")
 	config.ConnectTimeout = time.Second * 3
 
