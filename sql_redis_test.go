@@ -21,16 +21,16 @@ CREATE TABLE `demo` (
 */
 
 type SqlBaseEntity struct {
-	Id       int64     `mysql:"id" json:"id"`
-	AddTime  time.Time `mysql:"add_time" json:"add_time"`
-	EditTime time.Time `mysql:"edit_time" json:"edit_time"`
+	Id       int64     `mysql:"id" json:"id" redis:"id"`
+	AddTime  time.Time `mysql:"add_time" json:"add_time" redis:"add_time"`
+	EditTime time.Time `mysql:"edit_time" json:"edit_time" redis:"edit_time"`
 }
 
 type DemoEntity struct {
 	SqlBaseEntity
 
-	Name   string `mysql:"name" json:"name"`
-	Status int    `mysql:"status" json:"status"`
+	Name   string `mysql:"name" json:"name" redis:"name"`
+	Status int    `mysql:"status" json:"status" redis:"status"`
 }
 
 func TestSqlRedisBindStore(t *testing.T) {
@@ -38,7 +38,7 @@ func TestSqlRedisBindStore(t *testing.T) {
 	redisClientPool := newRedisTestPool()
 
 	sr := &SqlRedis{
-		SqlOrm:   mysql.NewSimpleOrm([]byte("TestSqlRedisBindSvc"), mysqlClientPool),
+		SqlOrm:   mysql.NewSimpleOrm([]byte("TestSqlRedisBindSvc"), mysqlClientPool, true),
 		RedisOrm: redis.NewSimpleOrm([]byte("TestSqlRedisBindSvc"), redisClientPool),
 	}
 
@@ -52,7 +52,7 @@ func TestSqlRedisBindStore(t *testing.T) {
 
 	item := &DemoEntity{
 		SqlBaseEntity: SqlBaseEntity{
-			Id:       505,
+			Id:       512,
 			AddTime:  time.Now(),
 			EditTime: time.Now(),
 		},
@@ -60,13 +60,16 @@ func TestSqlRedisBindStore(t *testing.T) {
 		Status: 1,
 	}
 
-	if err = sr.Insert(tableName, "Id", redisKeyPrefix, 10, item); err != nil {
+	ids, err := sr.Insert(tableName, tableName, "Id", redisKeyPrefix, 10, item)
+	if err != nil {
 		t.Error(err)
+	} else {
+		t.Log(ids)
 	}
 
 	t.Log("test GetById")
 
-	find, err = sr.GetById(tableName, entityName, redisKeyPrefix, 6, 10, item)
+	find, err = sr.GetById(tableName, entityName, redisKeyPrefix, ids[0], 10, item)
 	t.Log(find, err, item)
 
 	t.Log("test UpdateById")
@@ -75,13 +78,17 @@ func TestSqlRedisBindStore(t *testing.T) {
 		Name: "new-demo",
 	}
 	updateFields := map[string]bool{"name": true}
-	setItems, err := sr.UpdateById(tableName, entityName, redisKeyPrefix, 6, newDemo, updateFields, 10)
-	t.Log(err)
-	for i, item := range setItems {
-		t.Log(i, item)
+	setItems, err := sr.UpdateById(tableName, entityName, redisKeyPrefix, ids[0], newDemo, updateFields, 10)
+	if err != nil {
+		t.Log(err)
+	} else {
+		for i, item := range setItems {
+			t.Log(i, item)
+		}
 	}
+
 	item = &DemoEntity{}
-	find, err = sr.GetById(tableName, entityName, redisKeyPrefix, 6, 10, item)
+	find, err = sr.GetById(tableName, entityName, redisKeyPrefix, ids[0], 10, item)
 	t.Log(find, err, item)
 
 	t.Log("test TotalRows")
@@ -91,7 +98,7 @@ func TestSqlRedisBindStore(t *testing.T) {
 
 	t.Log("test TotalRows")
 
-	find, err = sr.DeleteById(tableName, entityName, redisKeyPrefix, 6)
+	find, err = sr.DeleteById(tableName, entityName, redisKeyPrefix, ids[0])
 	t.Log(find, err)
 }
 

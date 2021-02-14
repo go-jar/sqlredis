@@ -19,7 +19,9 @@ func reflectId(rev reflect.Value, idFieldName string) (int64, error) {
 			revF := rev.Field(i)
 
 			if revF.Kind() == reflect.Ptr || revF.Kind() == reflect.Struct {
-				id, _ = reflectId(revF, idFieldName)
+				if id, err := reflectId(revF, idFieldName); err == nil {
+					return id, nil
+				}
 			}
 
 			if ret.Field(i).Name == idFieldName {

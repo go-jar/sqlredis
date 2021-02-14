@@ -2,7 +2,6 @@ package sqlredis
 
 import (
 	"errors"
-	"reflect"
 	"strconv"
 
 	"github.com/go-jar/mysql"
@@ -22,38 +21,24 @@ func (sr *SqlRedis) RedisKeyForTotalRows(tableName, redisKeyPrefix string) strin
 	return redisKeyPrefix + "_total_rows_" + tableName
 }
 
-func (sr *SqlRedis) Insert(tableName, idFieldName, redisKeyPrefix string, expireSeconds int64, entities ...interface{}) error {
+func (sr *SqlRedis) Insert(tableName, entityName, idFieldName, redisKeyPrefix string, expireSeconds int64, entities ...interface{}) ([]int64, error) {
 	if len(entities) == 0 {
-		return errors.New("no object to be inserted")
+		return nil, errors.New("no object to be inserted")
 	}
 
-	err := sr.SqlOrm.Insert(tableName, entities...)
+	ids, err := sr.SqlOrm.Insert(tableName, entityName, idFieldName, entities...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	ret := reflect.TypeOf(entities[0])
-	var entityName string
-	if ret.Kind() == reflect.Ptr {
-		entityName = ret.Elem().Name()
-	} else {
-		entityName = ret.Name()
-	}
-
-	for _, entity := range entities {
-		rev := reflect.ValueOf(entity)
-		id, err := reflectId(rev, idFieldName)
+	for i, entity := range entities {
+		err = sr.RedisOrm.SaveEntity(sr.RedisKeyForEntity(ids[i], redisKeyPrefix, entityName), entity, expireSeconds)
 		if err != nil {
-			return err
-		}
-
-		err = sr.RedisOrm.SaveEntity(sr.RedisKeyForEntity(id, redisKeyPrefix, entityName), entity, expireSeconds)
-		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return ids, nil
 }
 
 func (sr *SqlRedis) GetById(tableName, entityName, redisKeyPrefix string, id, expireSeconds int64, entityPtr interface{}) (bool, error) {
